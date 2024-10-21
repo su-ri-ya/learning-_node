@@ -5,7 +5,7 @@ const ConnectionRequest=require("../model/connectionRequest")
 const User=require("../model/user")
 requestRouter.post("/request/send/:status/:toUserId",userAuth,async(req,res)=>{
     try {
-        const formUserId=req.user._id
+        const fromUserId=req.user._id
         const toUserId=req.params.toUserId
         const status=req.params.status
 
@@ -22,8 +22,8 @@ requestRouter.post("/request/send/:status/:toUserId",userAuth,async(req,res)=>{
 
         const existingConnectionReques=await ConnectionRequest.findOne({
             $or:[
-                {formUserId,toUserId},
-                {formUserId:toUserId,toUserId:formUserId}
+                {fromUserId,toUserId},
+                {fromUserId:toUserId,toUserId:fromUserId}
             ]
             
         })
@@ -33,7 +33,7 @@ requestRouter.post("/request/send/:status/:toUserId",userAuth,async(req,res)=>{
 
         
         const connectionRequest=  new ConnectionRequest({
-            formUserId,
+            fromUserId,
             toUserId,
             status
         })
@@ -48,4 +48,33 @@ requestRouter.post("/request/send/:status/:toUserId",userAuth,async(req,res)=>{
     }
 })
 
+requestRouter.post("/request/review/:status/:requestId",userAuth,async (req,res) => {
+    try {
+        const loggesInUser=req.user
+        const {status,requestId}=req.params
+        //validate the status
+        const allowedStatus=["accepted","rejected"]
+        if(!allowedStatus.includes(status)){
+            return res.status(400).json({message:"status not allowed"})
+        }
+        //request id should be valid
+        //status shoulb be interested
+        //loggedin user=touserid
+        const connectionRequest=await ConnectionRequest.findOne({
+            _id:requestId,
+            toUserId:loggesInUser._id,
+            status:"interested"
+        })
+        if (!connectionRequest) {
+            return res.status(400).json({message:"connection request not found"})
+        }
+        connectionRequest.status=status;
+        const data=await connectionRequest.save();
+
+        res.json({message:"connection request "+ status,data})
+
+    }catch (error) {
+        res.status(400).send("Error : " + error.message);
+    }
+})
 module.exports=requestRouter
